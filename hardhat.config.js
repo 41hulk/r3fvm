@@ -10,14 +10,6 @@ module.exports = {
   solidity: "0.8.17",
   defaultNetwork: "hardhat",
   networks: {
-    hardhat: {
-      chainId: 31337,
-    },
-    localhost: {
-      chainId: 1337,
-      url: "http://127.0.0.1:8545",
-      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
-    },
     hyperspace: {
       chainId: 3141,
       url: "https://api.hyperspace.node.glif.io/rpc/v1",
