@@ -1,31 +1,55 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
-// will compile your contracts, add the Hardhat Runtime Environment's members to the
-// global scope, and execute the script.
-const hre = require("hardhat");
+require("hardhat-deploy");
+require("hardhat-deploy-ethers");
 
-async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
+const ethers = require("ethers");
+const fa = require("@glif/filecoin-address");
+const util = require("util");
+const request = util.promisify(require("request"));
 
-  const lockedAmount = hre.ethers.utils.parseEther("1");
+const DEPLOYER_PRIVATE_KEY = network.config.accounts[0];
 
-  const Lock = await hre.ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
-
-  await lock.deployed();
-
-  console.log(
-    `Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
-  );
+async function callRpc(method, params) {
+  var options = {
+    method: "POST",
+    url: "https://wallaby.node.glif.io/rpc/v0",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      method: method,
+      params: params,
+      id: 1,
+    }),
+  };
+  const res = await request(options);
+  return JSON.parse(res.body).result;
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+const deployer = new ethers.Wallet(DEPLOYER_PRIVATE_KEY);
+
+module.exports = async ({ deployments }) => {
+  const { deploy } = deployments;
+
+  console.log(deployer.address);
+  const priorityFee = await callRpc("eth_maxPriorityFeePerGas");
+  const f4Address = fa.newDelegatedEthAddress(deployer.address).toString();
+  const nonce = await callRpc("Filecoin.MpoolGetNonce", [f4Address]);
+  console.log("Nonce : ", nonce)
+  console.log("Wallet Ethereum Address:", deployer.address);
+  console.log("Wallet f4Address: ", f4Address)
+
+  await deploy("NFTMarketplace", {
+    from: deployer.address,
+    args: [],
+    // since it's difficult to estimate the gas before f4 address is launched, it's safer to manually set
+    // a large gasLimit. This should be addressed in the following releases.
+    gasLimit: 1000000000, // BlockGasLimit / 10
+    // since Ethereum's legacy transaction format is not supported on FVM, we need to specify
+    // maxPriorityFeePerGas to instruct hardhat to use EIP-1559 tx format
+    maxPriorityFeePerGas: priorityFee,
+    nonce: nonce,
+    log: true,
+  });
+};
+module.exports.tags = ["NFTMarketplace"];
