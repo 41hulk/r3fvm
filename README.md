@@ -1,8 +1,8 @@
 #   R3TURN ♻️
-Project built in the ETHGlobal FVM SPACE WARP
+[Description]
 
 ## 👤 Author
-- Guy Ntare ([@guydeBuilder](https://twitter.com/guydeBuilder))
+- Guy Ntare
 
 ## 🌈 About
 [Description]
